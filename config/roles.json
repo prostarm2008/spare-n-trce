@@ -1,0 +1,261 @@
+{
+  "keys": {
+    "ADMIN": "HO Admin",
+    "ENG": "Field Engineer",
+    "HD": "Helpdesk",
+    "BS": "Branch Team",
+    "BT": "Branch TRCE",
+    "HT": "Hub TRCE",
+    "CT": "Central TRCE Stock Controller",
+    "TH": "Central TRCE Head"
+  },
+  "fromList": {
+    "System Admin": "ADMIN",
+    "Engineer": "ENG",
+    "Helpdesk": "HD",
+    "Branch Store": "BS",
+    "Branch TRCE": "BT",
+    "Hub TRCE": "HT",
+    "Central TRCE": "CT",
+    "TRCE Head": "TH"
+  },
+  "permissions": [
+    [
+      "req.create",
+      "Raise spare request",
+      "Requests"
+    ],
+    [
+      "req.view",
+      "View and track spare requests",
+      "Requests"
+    ],
+    [
+      "branch.issue",
+      "Issue spare or forward to hub",
+      "Branch Team"
+    ],
+    [
+      "branch.receive",
+      "Receive spare at branch",
+      "Branch Team"
+    ],
+    [
+      "branch.issueEng",
+      "Issue spare to engineer",
+      "Branch Team"
+    ],
+    [
+      "branch.receiveFaulty",
+      "Receive faulty spare, assign to TRCE",
+      "Branch Team"
+    ],
+    [
+      "hub.fulfil",
+      "Fulfil or forward requests at hub",
+      "Hub TRCE"
+    ],
+    [
+      "central.issue",
+      "Dispatch spare from central",
+      "Central Stock Controller"
+    ],
+    [
+      "central.receive",
+      "Receive faulty spare at central",
+      "Central Stock Controller"
+    ],
+    [
+      "scrap.approve",
+      "Approve or reject scrap",
+      "Central TRCE Head"
+    ],
+    [
+      "comp.approve",
+      "Approve component requests",
+      "Central TRCE Head"
+    ],
+    [
+      "eng.replace",
+      "Receive and replace spare",
+      "Field Engineer"
+    ],
+    [
+      "eng.close",
+      "Close call",
+      "Field Engineer"
+    ],
+    [
+      "eng.return",
+      "Return faulty spare",
+      "Field Engineer"
+    ],
+    [
+      "trce.repair",
+      "Work repair tasks (workbench)",
+      "TRCE"
+    ],
+    [
+      "trce.assign",
+      "Reassign repair tasks",
+      "TRCE"
+    ],
+    [
+      "activity.log",
+      "Daily repair log",
+      "TRCE"
+    ],
+    [
+      "comp.request",
+      "Raise component request",
+      "TRCE"
+    ],
+    [
+      "comp.procure",
+      "Purchase and dispatch components (hub)",
+      "Hub TRCE"
+    ],
+    [
+      "comp.receive",
+      "Receive components",
+      "TRCE"
+    ],
+    [
+      "inv.view",
+      "View inventory",
+      "Inventory"
+    ],
+    [
+      "inv.manage",
+      "Goods receipt, adjustment, bins",
+      "Inventory"
+    ],
+    [
+      "inv.transfer",
+      "Inter-location stock transfer",
+      "Inventory"
+    ],
+    [
+      "courier.view",
+      "Courier tracking",
+      "Courier"
+    ],
+    [
+      "dash.exec",
+      "Control tower dashboard",
+      "Insights"
+    ],
+    [
+      "reports.view",
+      "Reports",
+      "Insights"
+    ],
+    [
+      "kpi.view",
+      "KPI scorecard",
+      "Insights"
+    ],
+    [
+      "audit.view",
+      "Full audit trail",
+      "Administration"
+    ],
+    [
+      "admin.users",
+      "Users and roles",
+      "Administration"
+    ],
+    [
+      "admin.masters",
+      "Masters and SLA",
+      "Administration"
+    ],
+    [
+      "notif.log",
+      "Notification log",
+      "Administration"
+    ],
+    [
+      "blueprint.view",
+      "Solution blueprint",
+      "Administration"
+    ]
+  ],
+  "defaultPerms": {
+    "ADMIN": "*",
+    "ENG": [
+      "req.create",
+      "req.view",
+      "eng.replace",
+      "eng.close",
+      "eng.return",
+      "courier.view"
+    ],
+    "HD": [
+      "req.create",
+      "req.view",
+      "courier.view"
+    ],
+    "BS": [
+      "req.create",
+      "req.view",
+      "branch.issue",
+      "branch.receive",
+      "branch.issueEng",
+      "branch.receiveFaulty",
+      "inv.view",
+      "inv.manage",
+      "inv.transfer",
+      "courier.view",
+      "reports.view"
+    ],
+    "BT": [
+      "req.view",
+      "trce.repair",
+      "activity.log",
+      "comp.request",
+      "comp.receive",
+      "inv.view",
+      "courier.view"
+    ],
+    "HT": [
+      "req.view",
+      "hub.fulfil",
+      "trce.repair",
+      "trce.assign",
+      "activity.log",
+      "comp.request",
+      "comp.receive",
+      "comp.procure",
+      "inv.view",
+      "inv.manage",
+      "inv.transfer",
+      "courier.view",
+      "reports.view"
+    ],
+    "CT": [
+      "req.view",
+      "central.issue",
+      "central.receive",
+      "trce.assign",
+      "inv.view",
+      "inv.manage",
+      "inv.transfer",
+      "courier.view",
+      "reports.view",
+      "kpi.view"
+    ],
+    "TH": [
+      "req.view",
+      "scrap.approve",
+      "comp.approve",
+      "trce.assign",
+      "dash.exec",
+      "kpi.view",
+      "reports.view",
+      "inv.view",
+      "courier.view",
+      "audit.view"
+    ]
+  }
+}

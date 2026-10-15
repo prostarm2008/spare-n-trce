@@ -1,0 +1,66 @@
+{
+  "models": [
+    "PS-OL1K Online UPS 1 kVA",
+    "PS-OL2K Online UPS 2 kVA",
+    "PS-OL3K Online UPS 3 kVA",
+    "PS-OL6K Online UPS 6 kVA",
+    "PS-OL10K Online UPS 10 kVA",
+    "PS-3P20K 3-phase UPS 20 kVA",
+    "PS-3P40K 3-phase UPS 40 kVA",
+    "PS-INV25 Inverter 2.5 kVA"
+  ],
+  "couriers": [
+    "Delhivery",
+    "Blue Dart",
+    "DTDC",
+    "Royale Express & Logistics",
+    "By hand",
+    "Bus parcel"
+  ],
+  "sla": {
+    "delivery": {
+      "Critical": 24,
+      "High": 48,
+      "Normal": 72
+    },
+    "transitDays": 4,
+    "stdRepairHrs": 2,
+    "repairTarget": {
+      "Branch": 72,
+      "Hub": 96,
+      "Central": 168
+    }
+  },
+  "notifEvents": [
+    "Request Created",
+    "Request Forwarded",
+    "Spare Issued",
+    "Material Dispatched",
+    "Material Received",
+    "Repair Assigned",
+    "Repair On Hold",
+    "Repair Completed",
+    "Scrap Approval Needed",
+    "Scrap Approved",
+    "Scrap Rejected",
+    "Component Requested",
+    "Component Approved",
+    "Component Issued",
+    "Component Received",
+    "Stock Transfer"
+  ],
+  "shipTypes": [
+    "Spare Transfer",
+    "Faulty Spare Return",
+    "Component Dispatch",
+    "Inter Location Transfer"
+  ],
+  "forwardReasons": [
+    "Spare Not Available",
+    "Partial Stock Available",
+    "Emergency Requirement",
+    "High Priority Call",
+    "Reserved Stock",
+    "Other"
+  ]
+}

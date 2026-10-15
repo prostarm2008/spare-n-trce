@@ -1,0 +1,11 @@
+{
+  "name": "Prostarm SMT TRCE",
+  "title": "Prostarm National Spare Inventory & TRCE Repair Management",
+  "brandTitle": "Spare & TRCE",
+  "brandSub": "Prostarm service network",
+  "wordAlt": "Prostarm, Power Redefined",
+  "emailPrefix": "[Prostarm SMT] ",
+  "version": "2.0",
+  "storageKey": "prostarm.smtrce.v2",
+  "defaultAdminId": "PM1558"
+}

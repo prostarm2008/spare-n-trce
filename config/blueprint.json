@@ -1,0 +1,671 @@
+{
+  "schema": {
+    "roles": [
+      "id PK",
+      "name UQ",
+      "description"
+    ],
+    "permissions": [
+      "id PK",
+      "code UQ",
+      "label",
+      "module"
+    ],
+    "role_permissions": [
+      "role_id FK roles",
+      "permission_id FK permissions",
+      "PK (role_id, permission_id)"
+    ],
+    "locations": [
+      "id PK",
+      "code UQ",
+      "name",
+      "type (BRANCH|HUB|CENTRAL|OFFICE)",
+      "region",
+      "state",
+      "hub_id FK locations"
+    ],
+    "users": [
+      "id PK",
+      "employee_id UQ",
+      "name",
+      "email UQ",
+      "mobile",
+      "password_hash",
+      "role_id FK roles",
+      "location_id FK locations",
+      "region",
+      "is_active",
+      "last_login_at"
+    ],
+    "parts": [
+      "id PK",
+      "part_no UQ",
+      "description",
+      "part_group",
+      "fits_models",
+      "uom",
+      "unit_cost",
+      "min_qty",
+      "returnable_default"
+    ],
+    "components": [
+      "id PK",
+      "code UQ",
+      "name",
+      "unit_cost",
+      "uom"
+    ],
+    "spare_requests": [
+      "id PK",
+      "request_no UQ",
+      "call_id",
+      "customer_name",
+      "customer_location",
+      "product_model",
+      "product_serial",
+      "fault_description",
+      "part_id FK parts",
+      "qty",
+      "requested_qty",
+      "parent_request_id FK spare_requests",
+      "priority",
+      "returnable",
+      "billing (FOC|CHARGEABLE)",
+      "kind (SPARE|REPAIR)",
+      "source",
+      "remarks",
+      "branch_id FK locations",
+      "central_id FK locations",
+      "engineer_id FK users",
+      "raised_by FK users",
+      "status",
+      "fulfilled_from",
+      "issued_category",
+      "faulty_serial",
+      "sla_due_at",
+      "created_at",
+      "updated_at"
+    ],
+    "request_approvals": [
+      "id PK",
+      "request_id FK spare_requests",
+      "from_status",
+      "to_status",
+      "action",
+      "acted_by FK users",
+      "note",
+      "payload JSONB",
+      "acted_at"
+    ],
+    "attachments": [
+      "id PK",
+      "request_id FK spare_requests",
+      "kind",
+      "file_name",
+      "mime",
+      "size",
+      "storage_key",
+      "uploaded_by FK users",
+      "uploaded_at"
+    ],
+    "inventory": [
+      "id PK",
+      "location_id FK locations",
+      "part_id FK parts",
+      "category (NEW|REPAIRED|FAULTY|SCRAP)",
+      "qty",
+      "bin_location",
+      "UQ (location_id, part_id, category)"
+    ],
+    "inventory_serials": [
+      "id PK",
+      "inventory_id FK inventory",
+      "serial_no",
+      "status"
+    ],
+    "inventory_transactions": [
+      "id PK",
+      "location_id FK",
+      "part_id FK",
+      "category",
+      "txn_type",
+      "qty (+/-)",
+      "balance_after",
+      "unit_cost",
+      "ref_type",
+      "ref_id",
+      "serial_no",
+      "created_by FK users",
+      "created_at"
+    ],
+    "component_stock": [
+      "location_id FK",
+      "component_id FK",
+      "qty",
+      "PK (location_id, component_id)"
+    ],
+    "courier_tracking": [
+      "id PK",
+      "shipment_no UQ",
+      "request_id FK spare_requests",
+      "direction",
+      "from_location",
+      "to_location",
+      "courier_name",
+      "tracking_no",
+      "dispatch_date",
+      "delivered_at",
+      "status",
+      "created_by FK users"
+    ],
+    "repair_tickets": [
+      "id PK",
+      "ticket_no UQ",
+      "request_id FK spare_requests",
+      "part_id FK parts",
+      "serial_no",
+      "branch_id FK locations",
+      "repair_location_id FK locations",
+      "level (BRANCH|CENTRAL)",
+      "engineer_id FK users",
+      "defect",
+      "status",
+      "outcome",
+      "outcome_note",
+      "received_at",
+      "closed_at"
+    ],
+    "repair_sessions": [
+      "id PK",
+      "ticket_id FK repair_tickets",
+      "started_at",
+      "ended_at"
+    ],
+    "repair_parts_consumption": [
+      "id PK",
+      "ticket_id FK repair_tickets",
+      "component_id FK components",
+      "qty",
+      "unit_cost",
+      "total_cost (generated)",
+      "source_inventory",
+      "created_by FK users",
+      "created_at"
+    ],
+    "repair_history": [
+      "id PK",
+      "ticket_id FK repair_tickets",
+      "action",
+      "note",
+      "acted_by FK users",
+      "acted_at"
+    ],
+    "scrap_inventory": [
+      "id PK",
+      "ticket_id FK repair_tickets",
+      "part_id FK parts",
+      "serial_no",
+      "location_id FK locations",
+      "reason",
+      "book_value",
+      "declared_by FK users",
+      "approved_by FK users",
+      "approved_at"
+    ],
+    "request_forwarding_history": [
+      "id PK",
+      "request_id FK spare_requests",
+      "forwarded_by FK users",
+      "source_branch FK locations",
+      "destination_location FK locations (hub or central)",
+      "qty",
+      "reason",
+      "remarks",
+      "forwarded_at"
+    ],
+    "master_price_history": [
+      "id PK",
+      "master_type (SPARE|COMPONENT)",
+      "item_code",
+      "old_price",
+      "new_price",
+      "changed_by FK users",
+      "source_file",
+      "changed_at"
+    ],
+    "inventory_lots": [
+      "id PK",
+      "inventory_id FK inventory",
+      "batch_no",
+      "received_at",
+      "qty_received",
+      "qty_remaining",
+      "unit_cost",
+      "(FIFO issue order: received_at)"
+    ],
+    "component_requests": [
+      "id PK",
+      "request_no UQ",
+      "location_id FK locations",
+      "assigned_hub_id FK locations",
+      "justification",
+      "repair_ticket_id FK repair_tickets",
+      "status",
+      "raised_by FK users",
+      "approved_by FK users",
+      "dispatched_by FK users",
+      "received_by FK users"
+    ],
+    "component_request_lines": [
+      "id PK",
+      "request_id FK component_requests",
+      "component_id FK components",
+      "qty_requested",
+      "qty_approved",
+      "qty_purchased",
+      "remarks"
+    ],
+    "component_purchases": [
+      "id PK",
+      "request_id FK component_requests",
+      "hub_id FK locations",
+      "vendor",
+      "po_invoice_no",
+      "purchase_date",
+      "created_by FK users"
+    ],
+    "approval_workflow": [
+      "id PK",
+      "type (SCRAP|COMPONENT)",
+      "ref_type",
+      "ref_id",
+      "status",
+      "raised_by FK users",
+      "decided_by FK users",
+      "fault_analysis",
+      "remarks",
+      "images JSONB",
+      "decided_at"
+    ],
+    "stock_transfers": [
+      "id PK",
+      "transfer_no UQ",
+      "from_location FK locations",
+      "to_location FK locations",
+      "part_id FK parts",
+      "category",
+      "qty",
+      "reason",
+      "status",
+      "shipment_id FK courier_tracking"
+    ],
+    "activity_logs": [
+      "id PK",
+      "engineer_id FK users",
+      "log_date",
+      "repairs_completed",
+      "repairs_pending",
+      "scrap_declared",
+      "components_consumed",
+      "working_hours",
+      "remarks",
+      "UQ (engineer_id, log_date)"
+    ],
+    "notifications": [
+      "id PK",
+      "event",
+      "request_id FK spare_requests",
+      "user_id FK users",
+      "title",
+      "body",
+      "read_at",
+      "email_status",
+      "whatsapp_status",
+      "payload JSONB",
+      "created_at"
+    ],
+    "audit_logs": [
+      "id PK",
+      "user_id FK users",
+      "role",
+      "action",
+      "entity",
+      "entity_id",
+      "detail",
+      "before JSONB",
+      "after JSONB",
+      "ip",
+      "created_at  (append-only)"
+    ]
+  },
+  "indexes": [
+    "spare_requests (status, branch_id) for queues and dashboards",
+    "spare_requests (engineer_id, status) for the engineer home",
+    "spare_requests (created_at) BRIN for trend charts",
+    "spare_requests (call_id), (product_serial), (faulty_serial) for search",
+    "GIN trigram index on customer_name and fault_description for search everywhere",
+    "inventory (location_id, part_id, category) unique",
+    "inventory_transactions (location_id, part_id, created_at)",
+    "inventory_transactions (ref_type, ref_id)",
+    "courier_tracking (status, to_location) partial WHERE delivered_at IS NULL",
+    "repair_tickets (repair_location_id, status)",
+    "repair_tickets (engineer_id, closed_at)",
+    "notifications (user_id, read_at) partial WHERE read_at IS NULL",
+    "audit_logs (entity, entity_id), (created_at) BRIN; monthly partitions"
+  ],
+  "api": [
+    [
+      "POST",
+      "/api/auth/login",
+      "Public",
+      "Employee ID and password; returns access token (15 min) and refresh cookie"
+    ],
+    [
+      "POST",
+      "/api/auth/refresh",
+      "Signed in",
+      "Rotate tokens"
+    ],
+    [
+      "POST",
+      "/api/auth/logout",
+      "Signed in",
+      "Revoke refresh token"
+    ],
+    [
+      "GET",
+      "/api/me",
+      "Signed in",
+      "Profile, role, location, permission list"
+    ],
+    [
+      "GET",
+      "/api/requests",
+      "req.view",
+      "List with filters (status, stage, branch, priority, SLA, q), pagination, sort; scoped by role and location"
+    ],
+    [
+      "POST",
+      "/api/requests",
+      "req.create",
+      "Raise spare request (multipart, attachments)"
+    ],
+    [
+      "GET",
+      "/api/requests/:id",
+      "req.view",
+      "Request with timeline, shipments, tickets, attachments"
+    ],
+    [
+      "GET",
+      "/api/requests/:id/actions",
+      "req.view",
+      "Actions the caller may take now"
+    ],
+    [
+      "POST",
+      "/api/requests/:id/actions/:action",
+      "per action",
+      "Run a workflow action (approve, issue-branch with automatic balance split, forward-central, issue-central, receive-branch, issue-engineer, confirm-receipt, confirm-replacement, close-call, return-faulty, receive-faulty, dispatch-central, receive-central, approve-scrap, reject-scrap, reject, comment)"
+    ],
+    [
+      "GET",
+      "/api/requests/:id/availability",
+      "req.view",
+      "Serviceable stock of the part across locations"
+    ],
+    [
+      "GET",
+      "/api/requests/kanban",
+      "req.view",
+      "Counts and cards grouped by stage"
+    ],
+    [
+      "GET",
+      "/api/repairs",
+      "trce.repair",
+      "Repair tickets, scoped"
+    ],
+    [
+      "GET",
+      "/api/repairs/:id",
+      "trce.repair",
+      "Ticket with sessions, components, history"
+    ],
+    [
+      "POST",
+      "/api/repairs/:id/actions/:action",
+      "trce.repair",
+      "start, pause, complete, scrap, escalate, reassign"
+    ],
+    [
+      "POST",
+      "/api/repairs/:id/components",
+      "trce.repair",
+      "Add component consumption line; deducts TRCE stock"
+    ],
+    [
+      "GET|PUT",
+      "/api/activity-logs",
+      "activity.log",
+      "Read or upsert the daily log for a date"
+    ],
+    [
+      "GET|POST",
+      "/api/component-requests",
+      "comp.request",
+      "List or raise component requests"
+    ],
+    [
+      "POST",
+      "/api/component-requests/:id/:action",
+      "comp.approve / comp.procure / comp.receive",
+      "approve (with hub and approved qty per line), reject, purchase (vendor, PO, qty per line), dispatch (courier), receive"
+    ],
+    [
+      "POST",
+      "/api/uploads/component-lines",
+      "comp.request / trce.repair",
+      "Parse an Excel or CSV of component code and quantity into line items"
+    ],
+    [
+      "POST",
+      "/api/requests/:id/forward",
+      "branch.issue",
+      "Forward to one or more hubs: [{hubId, qty, remarks}], reason, remarks; rows must add up to the quantity"
+    ],
+    [
+      "GET",
+      "/api/requests/:id/forwarding-history",
+      "req.view",
+      "RequestForwardingHistory for the request family"
+    ],
+    [
+      "POST",
+      "/api/repair-requests",
+      "req.create",
+      "Faulty spare for repair without a spare issue: part, serial list, source, TRCE or central route; one FR request per serial"
+    ],
+    [
+      "GET",
+      "/api/inventory/inward-outward?from&to&location&type",
+      "inv.view",
+      "Date-wise inward and outward quantity and value, spares and components; Excel export"
+    ],
+    [
+      "POST",
+      "/api/masters/:type/upload",
+      "admin.masters",
+      "Upload spare or component master (Excel/CSV): validate, preview diff, apply; price history kept"
+    ],
+    [
+      "GET",
+      "/api/masters/:type/template",
+      "admin.masters",
+      "Download master template"
+    ],
+    [
+      "GET",
+      "/api/approvals",
+      "scrap.approve",
+      "Approval inbox: scrap and component requests"
+    ],
+    [
+      "GET|POST",
+      "/api/stock-transfers",
+      "inv.transfer",
+      "List or create inter-location transfers"
+    ],
+    [
+      "POST",
+      "/api/stock-transfers/:id/receive",
+      "inv.manage",
+      "Receive a transfer"
+    ],
+    [
+      "GET",
+      "/api/inventory/lots",
+      "inv.view",
+      "FIFO batches and aging"
+    ],
+    [
+      "GET",
+      "/api/trace/:requestId",
+      "req.view",
+      "Chain of custody: statuses, stock transactions, shipments, repair events"
+    ],
+    [
+      "GET",
+      "/api/inventory",
+      "inv.view",
+      "Stock by location, part, category"
+    ],
+    [
+      "GET",
+      "/api/inventory/transactions",
+      "inv.view",
+      "Movement history"
+    ],
+    [
+      "POST",
+      "/api/inventory/receipts",
+      "inv.manage",
+      "Goods receipt"
+    ],
+    [
+      "POST",
+      "/api/inventory/adjustments",
+      "inv.manage",
+      "Adjustment with reason"
+    ],
+    [
+      "PATCH",
+      "/api/inventory/:id/bin",
+      "inv.manage",
+      "Change bin location"
+    ],
+    [
+      "GET",
+      "/api/inventory/low-stock",
+      "inv.view",
+      "Parts below minimum"
+    ],
+    [
+      "GET",
+      "/api/shipments",
+      "courier.view",
+      "Courier tracking with transit state"
+    ],
+    [
+      "GET",
+      "/api/dashboard/executive",
+      "dash.exec",
+      "Cards and chart series; region, branch, period filters"
+    ],
+    [
+      "GET",
+      "/api/dashboard/:role",
+      "Signed in",
+      "Engineer, branch and TRCE home data"
+    ],
+    [
+      "GET",
+      "/api/kpis",
+      "kpi.view",
+      "Eight KPIs, current and monthly"
+    ],
+    [
+      "GET",
+      "/api/reports/:code",
+      "reports.view",
+      "Any of the 12 reports as JSON"
+    ],
+    [
+      "GET",
+      "/api/reports/:code/export?format=xlsx|pdf|csv",
+      "reports.view",
+      "File export; writes an audit entry"
+    ],
+    [
+      "GET",
+      "/api/notifications",
+      "Signed in",
+      "My notifications"
+    ],
+    [
+      "POST",
+      "/api/notifications/read",
+      "Signed in",
+      "Mark read"
+    ],
+    [
+      "GET",
+      "/api/notifications/log",
+      "notif.log",
+      "All notifications with channel status"
+    ],
+    [
+      "GET",
+      "/api/search?q=",
+      "Signed in",
+      "Search everywhere, scoped"
+    ],
+    [
+      "GET",
+      "/api/audit",
+      "audit.view",
+      "Audit trail with filters"
+    ],
+    [
+      "GET|POST|PATCH",
+      "/api/users",
+      "admin.users",
+      "User admin"
+    ],
+    [
+      "GET|PUT",
+      "/api/roles/:id/permissions",
+      "admin.users",
+      "RBAC matrix"
+    ],
+    [
+      "GET|POST|PATCH",
+      "/api/masters/:type",
+      "admin.masters",
+      "Parts, components, locations, couriers, models, SLA rules"
+    ],
+    [
+      "POST",
+      "/api/files",
+      "Signed in",
+      "Upload to object storage; returns key"
+    ],
+    [
+      "GET",
+      "/api/health",
+      "Public",
+      "Liveness and database check"
+    ]
+  ]
+}

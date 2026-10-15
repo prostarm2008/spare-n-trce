@@ -1,0 +1,132 @@
+{
+  "branches": {
+    "AS-Guwahati": {
+      "state": "Assam",
+      "region": "East"
+    },
+    "BH-Patna": {
+      "state": "Bihar",
+      "region": "East"
+    },
+    "GJ-Ahmedabad": {
+      "state": "Gujarat",
+      "region": "West"
+    },
+    "J&K": {
+      "state": "Jammu & Kashmir",
+      "region": "North"
+    },
+    "JH-Ranchi": {
+      "state": "Jharkhand",
+      "region": "East"
+    },
+    "KN-Bangalore": {
+      "state": "Karnataka",
+      "region": "South"
+    },
+    "MH-Mumbai": {
+      "state": "Maharashtra",
+      "region": "West"
+    },
+    "MP-Madhya Pradesh": {
+      "state": "Madhya Pradesh",
+      "region": "West"
+    },
+    "OD-Bhubaneswar": {
+      "state": "Odisha",
+      "region": "East"
+    },
+    "PN-Mohali": {
+      "state": "Punjab",
+      "region": "North"
+    },
+    "RJ-Jaipur": {
+      "state": "Rajasthan",
+      "region": "North"
+    },
+    "TL-Hyderabad": {
+      "state": "Telangana",
+      "region": "South"
+    },
+    "TN-Tamil Nadu": {
+      "state": "Tamil Nadu",
+      "region": "South"
+    },
+    "UP-Lucknow": {
+      "state": "Uttar Pradesh",
+      "region": "North"
+    },
+    "WB-Kolkata": {
+      "state": "West Bengal",
+      "region": "East"
+    }
+  },
+  "regions": [
+    "North",
+    "East",
+    "West",
+    "South"
+  ],
+  "hubs": {
+    "HUB-Noida": {
+      "code": "HNOI",
+      "region": "North",
+      "serves": [
+        "J&K",
+        "PN-Mohali",
+        "RJ-Jaipur",
+        "UP-Lucknow"
+      ]
+    },
+    "HUB-Kolkata": {
+      "code": "HKOL",
+      "region": "East",
+      "serves": [
+        "AS-Guwahati",
+        "BH-Patna",
+        "JH-Ranchi",
+        "OD-Bhubaneswar",
+        "WB-Kolkata"
+      ]
+    },
+    "HUB-Ahmedabad": {
+      "code": "HAMD",
+      "region": "West",
+      "serves": [
+        "GJ-Ahmedabad",
+        "MP-Madhya Pradesh"
+      ]
+    },
+    "HUB-Pune": {
+      "code": "HPUN",
+      "region": "West",
+      "serves": [
+        "MH-Mumbai"
+      ]
+    },
+    "HUB-Bangalore": {
+      "code": "HBLR",
+      "region": "South",
+      "serves": [
+        "KN-Bangalore",
+        "TL-Hyderabad",
+        "TN-Tamil Nadu"
+      ]
+    },
+    "TRC-Pune": {
+      "code": "TPUN",
+      "region": "West",
+      "serves": [],
+      "workshop": true
+    }
+  },
+  "centrals": [
+    "TRC-Mumbai"
+  ],
+  "officeLocations": [
+    "Head Office",
+    "TRC-HO"
+  ],
+  "defaultHub": "HUB-Pune",
+  "centralRegion": "West"
+}

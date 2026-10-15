@@ -1,0 +1,10 @@
+{
+  "FLOW_URL": "https://default000090a2d8654861ba6937e8e47451.72.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/28/workflows/45fc5d176cdc4c98a163c1f48f0c5753/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=smXD7Cd8qR_w-FV8c6cSkhuWKcO5-6CavfX2dW8ND6s",
+  "SHAREPOINT_SITE": "https://prostarminfosys.sharepoint.com/sites/spare-requests-trce",
+  "LIST_NAME": "SMT_Data",
+  "LIBRARY_NAME": "SMT Documents",
+  "PUSH_INTERVAL_SEC": 8,
+  "PULL_INTERVAL_SEC": 60,
+  "BATCH_SIZE": 40,
+  "MAX_FILE_MB": 8
+}

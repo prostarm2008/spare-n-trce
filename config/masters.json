@@ -1,0 +1,248 @@
+{
+  "parts": {
+    "title": "Spare master",
+    "key": "pn",
+    "sheet": "Spare Master",
+    "cols": [
+      [
+        "pn",
+        "Part Number",
+        1,
+        [
+          "partnumber",
+          "partno",
+          "pn",
+          "sparecode",
+          "code"
+        ]
+      ],
+      [
+        "desc",
+        "Description",
+        1,
+        [
+          "description",
+          "partdescription",
+          "sparename",
+          "name"
+        ]
+      ],
+      [
+        "cat",
+        "Part Group",
+        1,
+        [
+          "partgroup",
+          "group",
+          "category"
+        ]
+      ],
+      [
+        "model",
+        "Fits Models",
+        0,
+        [
+          "fitsmodels",
+          "models",
+          "model",
+          "compatiblemodels"
+        ]
+      ],
+      [
+        "uom",
+        "UOM",
+        1,
+        [
+          "uom",
+          "unit",
+          "unitofmeasure"
+        ]
+      ],
+      [
+        "cost",
+        "Unit Price (INR)",
+        1,
+        [
+          "unitpriceinr",
+          "unitprice",
+          "price",
+          "cost",
+          "rate"
+        ]
+      ],
+      [
+        "min",
+        "Branch Minimum Qty",
+        1,
+        [
+          "branchminimumqty",
+          "branchmin",
+          "minimumqty",
+          "minqty",
+          "min"
+        ]
+      ],
+      [
+        "hubMin",
+        "Hub Minimum Qty",
+        0,
+        [
+          "hubminimumqty",
+          "hubmin"
+        ]
+      ],
+      [
+        "centralMin",
+        "Central Minimum Qty",
+        0,
+        [
+          "centralminimumqty",
+          "centralmin"
+        ]
+      ],
+      [
+        "ret",
+        "Returnable (Yes/No)",
+        1,
+        [
+          "returnableyesno",
+          "returnable"
+        ]
+      ],
+      [
+        "active",
+        "Active (Yes/No)",
+        1,
+        [
+          "activeyesno",
+          "active",
+          "status"
+        ]
+      ],
+      [
+        "hsn",
+        "HSN Code",
+        0,
+        [
+          "hsncode",
+          "hsn"
+        ]
+      ],
+      [
+        "remarks",
+        "Remarks",
+        0,
+        [
+          "remarks",
+          "notes"
+        ]
+      ]
+    ]
+  },
+  "comps": {
+    "title": "Component master",
+    "key": "code",
+    "sheet": "Component Master",
+    "cols": [
+      [
+        "code",
+        "Component Code",
+        1,
+        [
+          "componentcode",
+          "code",
+          "compcode"
+        ]
+      ],
+      [
+        "name",
+        "Component Name",
+        1,
+        [
+          "componentname",
+          "name",
+          "description"
+        ]
+      ],
+      [
+        "ccat",
+        "Component Category",
+        0,
+        [
+          "componentcategory",
+          "category",
+          "group"
+        ]
+      ],
+      [
+        "uom",
+        "Unit",
+        1,
+        [
+          "unit",
+          "uom"
+        ]
+      ],
+      [
+        "cost",
+        "Unit Price (INR)",
+        1,
+        [
+          "unitpriceinr",
+          "unitprice",
+          "price",
+          "cost",
+          "rate"
+        ]
+      ],
+      [
+        "min",
+        "Minimum Qty",
+        1,
+        [
+          "minimumqty",
+          "minqty",
+          "min"
+        ]
+      ],
+      [
+        "reorder",
+        "Reorder Level",
+        1,
+        [
+          "reorderlevel",
+          "reorder",
+          "reorderqty"
+        ]
+      ],
+      [
+        "active",
+        "Active (Yes/No)",
+        1,
+        [
+          "activeyesno",
+          "active",
+          "status"
+        ]
+      ],
+      [
+        "hsn",
+        "HSN Code",
+        0,
+        [
+          "hsncode",
+          "hsn"
+        ]
+      ],
+      [
+        "remarks",
+        "Remarks",
+        0,
+        [
+          "remarks",
+          "notes"
+        ]
+      ]
+    ]
+  }
+}

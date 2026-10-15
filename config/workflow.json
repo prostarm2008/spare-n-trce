@@ -1,0 +1,153 @@
+{
+  "priorities": [
+    "Critical",
+    "High",
+    "Normal"
+  ],
+  "categories": [
+    {
+      "k": "New",
+      "label": "New",
+      "color": "#0067B1"
+    },
+    {
+      "k": "Repaired",
+      "label": "Serviceable / reusable (repaired)",
+      "color": "#1E9A58"
+    },
+    {
+      "k": "Faulty",
+      "label": "Repair task (faulty)",
+      "color": "#C98A00"
+    },
+    {
+      "k": "Scrap",
+      "label": "Scrap",
+      "color": "#D2343B"
+    }
+  ],
+  "requestStatus": {
+    "REQ": "Request Created",
+    "REJ": "Rejected",
+    "BI": "Branch Issued",
+    "FH": "Forwarded To Hub",
+    "HI": "Hub Issued",
+    "FC": "Forwarded To Central",
+    "CI": "Central Issued",
+    "RAB": "Branch Received",
+    "ITE": "Issued To Engineer",
+    "SR": "Spare Replaced",
+    "CLO": "Closed",
+    "FSR": "Faulty Returned",
+    "ATR": "Assigned To Branch TRCE",
+    "HOLD": "Repair On Hold",
+    "SPA": "Scrap Approval Pending",
+    "SCR2": "Sent To Central Repair",
+    "RCC": "Received At Central TRCE",
+    "REP": "Repaired",
+    "SCR": "Scrap"
+  },
+  "stages": [
+    {
+      "k": "new",
+      "t": "Request created",
+      "c": "var(--c-branch)",
+      "s": [
+        "REQ"
+      ]
+    },
+    {
+      "k": "hub",
+      "t": "At hub",
+      "c": "var(--c-hub)",
+      "s": [
+        "FH"
+      ]
+    },
+    {
+      "k": "central",
+      "t": "At central TRCE",
+      "c": "var(--c-central)",
+      "s": [
+        "FC"
+      ]
+    },
+    {
+      "k": "transit",
+      "t": "In transit to branch",
+      "c": "var(--c-transit)",
+      "s": [
+        "HI",
+        "CI"
+      ]
+    },
+    {
+      "k": "branch",
+      "t": "Branch received",
+      "c": "var(--c-branch)",
+      "s": [
+        "RAB"
+      ]
+    },
+    {
+      "k": "eng",
+      "t": "With engineer",
+      "c": "var(--c-eng)",
+      "s": [
+        "BI",
+        "ITE",
+        "SR"
+      ]
+    },
+    {
+      "k": "repair",
+      "t": "Faulty return and repair",
+      "c": "var(--c-repair)",
+      "s": [
+        "FSR",
+        "ATR",
+        "HOLD",
+        "SPA",
+        "SCR2",
+        "RCC"
+      ]
+    },
+    {
+      "k": "done",
+      "t": "Closed",
+      "c": "var(--c-done)",
+      "s": [
+        "CLO",
+        "REP",
+        "SCR",
+        "REJ"
+      ]
+    }
+  ],
+  "repairStatus": {
+    "Q": "Queued",
+    "IP": "In Repair",
+    "HOLD": "On Hold",
+    "RP": "Repaired",
+    "SD": "Scrap Approval Pending",
+    "SC": "Scrap",
+    "ES": "Sent To Central"
+  },
+  "repairColors": {
+    "Q": "var(--c-branch)",
+    "IP": "var(--c-eng)",
+    "HOLD": "var(--c-transit)",
+    "RP": "var(--c-done)",
+    "SD": "var(--c-stop)",
+    "SC": "var(--c-stop)",
+    "ES": "var(--c-hub)"
+  },
+  "componentStatus": {
+    "REQ": "Requested",
+    "APR": "Approved, Assigned To Hub",
+    "PUR": "Purchased At Hub",
+    "ISS": "Component Issued",
+    "RCV": "Component Received",
+    "REJ": "Rejected"
+  }
+}
