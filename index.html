@@ -383,6 +383,7 @@ tbody tr:hover td.act{background:var(--soft)}
 
 .doc{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--panel);cursor:pointer;text-align:left;color:var(--ink)}
 .doc:hover{border-color:var(--brand)} .doc img{width:64px;height:64px;object-fit:cover;border-radius:6px;background:var(--soft)}
+.oth-req{border-color:var(--warn)!important;background:var(--warnbg)!important}
 .rolechip.sync-error{background:var(--badbg);color:var(--bad);cursor:pointer} .rolechip.busy{background:var(--warnbg);color:var(--warn);cursor:pointer} #syncChip{cursor:pointer}
 
 </style>
@@ -877,12 +878,14 @@ function runAction(k, rid, d, u=S.user){
 
 /* ---------------- request creation ---------------- */
 function createRequest(d,u=S.user){
-  if(!DB.parts[d.pn]||DB.parts[d.pn].active===false) throw new Error(`Part ${d.pn} is not active in the spare master.`);
+  if(d.pn===OTHER_PN){ if(!String(d.otherSpare||'').trim()) throw new Error('Describe the spare required.'); }
+  else if(!DB.parts[d.pn]||DB.parts[d.pn].active===false) throw new Error(`Part ${d.pn} is not active in the spare master.`);
   const id = nextId('SR'); const q=Math.max(1,parseInt(d.qty)||1);
   const r = { id, callId:d.callId, customer:d.customer, custLoc:d.custLoc, model:d.model, serial:d.serial, fault:d.fault, pn:d.pn, qty:q, origQty:q, children:[],
     priority:d.priority, returnable: d.returnable==='Yes' || d.returnable===true, billing:d.billing||'FOC', remarks:d.remarks||'', att:[], branch:d.branch, hub:hubOf(d.branch), central:'',
     raisedBy:u.id, raisedRole:u.role, engineer:d.engineer||u.id, status:ST.REQ, created:nowISO(), updated:nowISO(), t:{}, history:[], involved:[d.branch],
     shipments:[], tickets:[], issued:null, fill:'' };
+  if(d.pn===OTHER_PN) r.otherSpare=String(d.otherSpare).trim();
   r.t[ST.REQ]=r.created;
   (d.attachments||[]).forEach(f=>r.att.push({...f,kind:'Request attachment',by:u.id,ts:nowISO()}));
   r.history.push({ts:r.created,status:ST.REQ,by:u.id,role:u.role,note:d.remarks||''});
@@ -936,11 +939,14 @@ const tat = t => t.closed ? hrs(t.received,t.closed) : hrs(t.received);
 function endSession(t){ const s=t.sessions[t.sessions.length-1]; if(s && !s.e) s.e=nowISO(); }
 const isTE = (t,u) => u.role===R.ADMIN || t.engineer===u.id;
 const usedField = (label,req) => ({k:'used', label, type:'lines', mode:'use', req, wide:true, loc:t=>t.loc});
-function consume(t,lines,u){ mergeLines(lines).forEach(l=>{ const c=DB.comps[l.code]; if(!c) throw new Error('Unknown component '+l.code);
+function consume(t,lines,u){ mergeLines(lines).forEach(l=>{
+  if(l.code===OTHER_CODE){ if(!l.remarks) throw new Error('Describe every Others component.'); t.comps.push({code:OTHER_CODE,name:'Others: '+l.remarks,qty:l.qty,cost:0,source:'Not in component master (no stock deduction)',remarks:l.remarks,ts:nowISO(),by:u.id}); tHist(t,'Component consumed (Others)',u,`${l.remarks} x${l.qty}`); return; }
+  if(isOtherComp(l.code)){ compMove(t.loc,l.code,-l.qty,'Component consumed',t.id,u); t.comps.push({code:l.code,name:otherCompName(l.code),qty:l.qty,cost:0,source:locType(t.loc)+' TRCE component inventory, '+t.loc+' (Others)',remarks:l.remarks||'',ts:nowISO(),by:u.id}); tHist(t,'Component consumed',u,`${l.code} x${l.qty}, ${otherCompName(l.code)}`); return; }
+  const c=DB.comps[l.code]; if(!c) throw new Error('Unknown component '+l.code);
   compMove(t.loc,l.code,-l.qty,'Component consumed',t.id,u); t.comps.push({code:l.code,name:c.name,qty:l.qty,cost:c.cost,source:locType(t.loc)+' TRCE component inventory, '+t.loc,remarks:l.remarks||'',ts:nowISO(),by:u.id}); tHist(t,'Component consumed',u,`${l.code} x${l.qty} @ ${inr(c.cost)}${l.remarks?', '+l.remarks:''}`); }); }
 function mergeLines(lines){ (lines||[]).forEach(l=>{ if(l&&l.code&&DB.comps[l.code]&&DB.comps[l.code].active===false) throw new Error(l.code+' is inactive in the component master.'); });
   return mergeLines0(lines); }
-function mergeLines0(lines){ const m={}; (lines||[]).filter(l=>l&&l.code&&num(l.qty)>0).forEach(l=>{ const k=l.code; if(!m[k]) m[k]={code:k,qty:0,remarks:[]}; m[k].qty+=Math.round(num(l.qty)); if(l.remarks) m[k].remarks.push(l.remarks); }); return Object.values(m).map(x=>({...x,remarks:x.remarks.join('; ')})); }
+function mergeLines0(lines){ const m={}; (lines||[]).filter(l=>l&&l.code&&num(l.qty)>0).forEach(l=>{ const k=l.code===OTHER_CODE?OTHER_CODE+'|'+String(l.remarks||'').trim().toLowerCase():l.code; if(!m[k]) m[k]={code:l.code,qty:0,remarks:[]}; m[k].qty+=Math.round(num(l.qty)); if(l.remarks) m[k].remarks.push(l.remarks); }); return Object.values(m).map(x=>({...x,remarks:x.remarks.join('; ')})); }
 const reqOf = t => DB.requests[t.req];
 const TACTIONS = {
   start:{label:'Taken for repair', pri:true, from:[TK.Q], perm:'trce.repair', scope:isTE, fields:[{k:'note',label:'Initial observation',type:'textarea'}],
@@ -998,7 +1004,8 @@ const hubShort = (c,hub) => c.lines.filter(l=>lq(l)>0).map(l=>({code:l.code,name
 function raiseCompReq(d,u=S.user){
   const lines=mergeLines(d.lines); if(!lines.length) throw new Error('Add at least one component line.');
   const id=nextId('CR');
-  DB.creqs[id]=crSync({id,loc:u.loc,by:u.id,lines:lines.map(l=>({code:l.code,name:DB.comps[l.code].name,qty:l.qty,remarks:l.remarks||''})),just:d.just,tk:d.tk||'',status:CR.REQ,created:nowISO(),history:[{ts:nowISO(),status:CR.REQ,by:u.id,note:d.just}],shipments:[],purchases:[]});
+  if(lines.some(l=>l.code===OTHER_CODE&&!l.remarks)) throw new Error('Describe every Others component.');
+  let on=0; DB.creqs[id]=crSync({id,loc:u.loc,by:u.id,lines:lines.map(l=>l.code===OTHER_CODE?({code:'OTH-'+id.replace(/^CR-/,'')+'-'+(++on),name:'Others: '+l.remarks,qty:l.qty,remarks:l.remarks,other:true}):({code:l.code,name:(DB.comps[l.code]||{}).name||l.code,qty:l.qty,remarks:l.remarks||''})),just:d.just,tk:d.tk||'',status:CR.REQ,created:nowISO(),history:[{ts:nowISO(),status:CR.REQ,by:u.id,note:d.just}],shipments:[],purchases:[]});
   const c=DB.creqs[id]; audit('Component request raised','Component request',id,`${lines.length} line(s), ${c.qty} units for ${u.loc}: ${d.just}`,u);
   notifyRaw('Component Requested',id,ids(usersBy(R.TH)),'Component request '+id,`${u.loc} needs ${c.name}, ${c.qty} units. ${d.just}`,[id,c.name,String(c.qty),u.loc]); save(); return c;
 }
@@ -1330,7 +1337,11 @@ const prio = p => `<span class="prio ${esc(p)}">${esc(p)}</span>`;
 const slaChip = r => { const s=slaInfo(r); return s.state==='na'?'<span class="muted small">n/a</span>':`<span class="sla-chip ${s.state}">${esc(s.label)}</span>`; };
 const tpill = s => pill(s, TK_COLOR[s]);
 const shPill = s => pill(s, s==='Delivered'?'var(--c-done)':s==='Delayed'?'var(--c-stop)':'var(--c-transit)');
-const partName = pn => (DB.parts[pn]||DB.comps[pn]||{}).desc || (DB.comps[pn]||{}).name || pn;
+const OTHER_PN='OTHERS', OTHER_CODE='OTHERS';
+const isOtherComp = code => /^OTH-/.test(code||'');
+function otherCompName(code){ if(!isOtherComp(code)) return ''; for(const c of Object.values(DB.creqs||{})) for(const l of c.lines||[]) if(l.code===code) return l.name; return 'Others component'; }
+const otherStock = loc => Object.values(DB.cstock||{}).filter(c=>c.loc===loc&&isOtherComp(c.code)&&c.qty>0);
+const partName = pn => pn===OTHER_PN ? 'Others (not in master)' : pn===OTHER_CODE ? 'Others (not in master)' : (DB.parts[pn]||DB.comps[pn]||{}).desc || (DB.comps[pn]||{}).name || otherCompName(pn) || pn;
 const reqLink = id => `<button class="link" data-act="open" data-kind="req" data-id="${esc(id)}">${esc(id)}</button>`;
 const tkLink = id => `<button class="link" data-act="open" data-kind="tk" data-id="${esc(id)}">${esc(id)}</button>`;
 
@@ -1514,8 +1525,9 @@ async function readForm(root,fields){
     let v;
     if(f.type==='radios'){ const c=$(`input[name="${f.k}"]:checked`,box); v=c?c.value:''; }
     else if(f.type==='lines'){ v=$$('tbody tr',box).map(tr=>({code:$('select',tr).value,qty:num($('input[type=number]',tr).value),remarks:$('input[type=text]',tr).value.trim()})).filter(x=>x.code||x.qty&&x.remarks);
+      const othBad=v.some(x=>x.code===OTHER_CODE&&!x.remarks); if(othBad){ box.classList.add('err'); box.insertAdjacentHTML('beforeend','<span class="em">Describe every Others component in its remarks box.</span>'); bad=bad||box; }
       const badRow=v.some(x=>!x.code||x.qty<=0); if((f.req&&!v.length)||badRow){ box.classList.add('err'); box.insertAdjacentHTML('beforeend',`<span class="em">${badRow?'Every line needs a component and a quantity above zero.':'Add at least one component line.'}</span>`); bad=bad||box; }
-      if(f.mode==='use'){ const loc=$('.lw',box).dataset.loc; const short=mergeLines(v).filter(l=>cstk(loc,l.code)<l.qty); if(short.length){ box.classList.add('err'); box.insertAdjacentHTML('beforeend',`<span class="em">Not enough stock at ${esc(loc)}: ${short.map(l=>`${l.code} has ${cstk(loc,l.code)}, line needs ${l.qty}`).join('; ')}. Raise a component request.</span>`); bad=bad||box; } }
+      if(f.mode==='use'){ const loc=$('.lw',box).dataset.loc; const short=mergeLines(v).filter(l=>l.code!==OTHER_CODE&&cstk(loc,l.code)<l.qty); if(short.length){ box.classList.add('err'); box.insertAdjacentHTML('beforeend',`<span class="em">Not enough stock at ${esc(loc)}: ${short.map(l=>`${l.code} has ${cstk(loc,l.code)}, line needs ${l.qty}`).join('; ')}. Raise a component request.</span>`); bad=bad||box; } }
       out[f.k]=v; continue; }
     else if(f.type==='apprlines'){ out[f.k]=$$('tbody input',box).map(i=>num(i.value)); continue; }
     else if(f.type==='hubsplit'){ const hs=$('.hs',box); const pend=+hs.dataset.pend; v=$$('tbody tr',hs).map(tr=>({hub:$('select',tr).value,qty:num($('input[type=number]',tr).value),remarks:$('input[type=text]',tr).value.trim()})).filter(x=>x.qty>0||x.hub);
@@ -1550,8 +1562,8 @@ const fileList = (arr,kind='Request',id='') => arr&&arr.length ? `<div class="fi
   return `<button type="button" class="doc" data-act="docView" data-doc="${key}" title="${esc(f.kind||'')}">${img?`<img data-doc="${key}" alt="${esc(f.name)}" ${f.url?`src="${f.url}" data-done="1"`:''}>`:svg('file')}<span class="small">${esc(f.name)}<br><span class="muted">${esc(f.kind||'')}</span> ${tag}</span></button>`; }).join('')}</div>` : '<p class="muted">No files.</p>';
 
 /* ---------- line-item widget: components used / requested, with Excel or CSV bulk upload ---------- */
-function lwRow(loc,code,qty,rem){ return `<tr><td><select aria-label="Component"><option value="">Select component</option>${activeComps().map(c=>`<option value="${c.code}" ${c.code===code?'selected':''}>${esc(c.code)}, ${esc(c.name)} (stock ${cstk(loc,c.code)})</option>`).join('')}</select></td>
-  <td class="r"><input type="number" min="0" step="1" value="${qty||''}" aria-label="Quantity" style="text-align:right"></td><td><input type="text" value="${esc(rem||'')}" placeholder="Optional" aria-label="Remarks"></td>
+function lwRow(loc,code,qty,rem){ const oth=code===OTHER_CODE; return `<tr><td><select aria-label="Component"><option value="">Select component</option>${activeComps().map(c=>`<option value="${c.code}" ${c.code===code?'selected':''}>${esc(c.code)}, ${esc(c.name)} (stock ${cstk(loc,c.code)})</option>`).join('')}${otherStock(loc).map(c=>`<option value="${c.code}" ${c.code===code?'selected':''}>${esc(c.code)}, ${esc(otherCompName(c.code))} (stock ${c.qty}, not in master)</option>`).join('')}<option value="${OTHER_CODE}" ${oth?'selected':''}>Others (component not in the list)</option></select></td>
+  <td class="r"><input type="number" min="0" step="1" value="${qty||''}" aria-label="Quantity" style="text-align:right"></td><td><input type="text" value="${esc(rem||'')}" placeholder="${oth?'Describe the component (required)':'Optional'}" aria-label="Remarks" ${oth?'class="oth-req"':''}></td>
   <td><button type="button" class="btn sm ghost" data-act="lwDel" aria-label="Remove line">${svg('x')}</button></td></tr>`; }
 function lwSync(lw){ const rows=$$('tbody tr',lw).map(tr=>({code:$('select',tr).value,qty:num($('input[type=number]',tr).value)})).filter(x=>x.code);
   $('.lw-foot',lw).textContent=`${rows.length} line${rows.length===1?'':'s'}, ${qf(sum(rows,x=>x.qty))} units, about ${inr(sum(rows,x=>x.qty*((DB.comps[x.code]||{}).cost||0)))}`; }
@@ -1604,7 +1616,7 @@ function actionModal(kind,key,id){
   const [A,store,run]=AREG()[kind]; const a=A[key]; const rec=store[id]; if(!a||!rec) return;
   const L = tLabel(a,rec); const warn = a.check ? a.check(rec) : ''; const info = !warn && a.info ? a.info(rec) : '';
   openModal(`<form id="actForm" novalidate><div class="modal-h"><div><h2>${esc(L)}</h2><p class="muted">${esc(id)}, ${esc(partName(rec.pn))} x${rec.apprQty||rec.qty||1}</p></div><button type="button" class="btn sm" data-act="closeModal">Cancel</button></div>
-    <div class="modal-b">${warn?`<div class="callout warn" style="margin-bottom:14px">${esc(warn)}</div>`:''}${info?`<div class="callout" style="margin-bottom:14px"><b>Part issue.</b> ${esc(info)}</div>`:''}
+    <div class="modal-b">${warn?`<div class="callout warn" style="margin-bottom:14px">${esc(warn)}</div>`:''}${info?`<div class="callout" style="margin-bottom:14px">${key==='identify'?'':'<b>Part issue.</b> '}${esc(info)}</div>`:''}
       ${a.fields.length?`<div class="fgrid">${a.fields.map(f=>fieldHTML(f,rec)).join('')}</div>`:`<p>Confirm to continue.</p>`}
       <p class="muted small" style="margin-top:12px">This step writes a status record${/stock|issue|receive|dispatch|repair|scrap|send|transfer/i.test(L)?', the stock transactions it causes,':''} and an audit entry under your name.</p></div>
     <div class="modal-f"><button type="button" class="btn" data-act="closeModal">Cancel</button><button class="btn ${a.danger?'red':'pri'}" type="submit" ${warn?'disabled':''}>${esc(L)}</button></div></form>`, !a.fields.some(f=>['lines','apprlines','hubsplit'].includes(f.type)));
@@ -1784,7 +1796,7 @@ function openReq(id, tab='overview'){
     const showAvail = [ST.REQ,ST.FH,ST.FC].includes(r.status) && [R.ADMIN,R.BS,R.HT,R.CT,R.HD,R.TH].includes(S.user.role);
     body = `<div class="stack"><div class="panel"><div class="kv">
       ${kv('Call ID',esc(r.callId))}${kv('Customer',esc(r.customer))}${kv('Customer address',esc(r.custLoc))}${kv('Product model',esc(r.model))}
-      ${kv('Product serial number',esc(r.serial))}${kv('Branch / hub',esc(r.branch)+' / '+esc(r.hub))}${r.kind==='repair'?kv('Type',pill('Faulty spare for repair','var(--c-repair)')+'<br><span class="muted small">'+esc(r.source)+'</span>'):kv('Replacement type',r.billing==='Chargeable'?pill('Chargeable','var(--c-transit)'):pill('FOC','var(--c-eng)'))}${kv('Required spare',esc(r.pn)+'<br><span class="muted">'+esc(p.desc)+'</span>')}${kv('Quantity',qf(r.qty)+' '+esc(p.uom||'Nos')+(r.origQty&&r.origQty!==r.qty?` <span class="muted small">of ${r.origQty} asked</span>`:''))}${(r.parent||(r.children||[]).length)?kv('Linked requests',[r.parent?'Split from '+reqLink(r.parent):'',...(r.children||[]).map(c=>'Balance '+reqLink(c)+' x'+((DB.requests[c]||{}).qty||''))].filter(Boolean).join('<br>')):''}
+      ${kv('Product serial number',esc(r.serial))}${kv('Branch / hub',esc(r.branch)+' / '+esc(r.hub))}${r.kind==='repair'?kv('Type',pill('Faulty spare for repair','var(--c-repair)')+'<br><span class="muted small">'+esc(r.source)+'</span>'):kv('Replacement type',r.billing==='Chargeable'?pill('Chargeable','var(--c-transit)'):pill('FOC','var(--c-eng)'))}${kv('Required spare',esc(r.pn)+'<br><span class="muted">'+esc(p.desc||partName(r.pn))+'</span>'+(r.otherSpare?'<br><span class="tag">Others</span> '+esc(r.otherSpare):'')+(r.otherFrom?'<br><span class="muted small">Identified from Others: '+esc(r.otherFrom)+'</span>':''))}${kv('Quantity',qf(r.qty)+' '+esc(p.uom||'Nos')+(r.origQty&&r.origQty!==r.qty?` <span class="muted small">of ${r.origQty} asked</span>`:''))}${(r.parent||(r.children||[]).length)?kv('Linked requests',[r.parent?'Split from '+reqLink(r.parent):'',...(r.children||[]).map(c=>'Balance '+reqLink(c)+' x'+((DB.requests[c]||{}).qty||''))].filter(Boolean).join('<br>')):''}
       ${kv('Spare value',inr(r.qty*(p.cost||0)))}${kv('Returnable spare',r.returnable?'Yes':'No')}${kv('Engineer',esc(uname(r.engineer)))}${kv('Raised by',esc(uname(r.raisedBy))+', '+esc(r.raisedRole))}
       ${kv('Raised on',fdt(r.created))}${kv('Fulfilled from',esc(r.fill?r.fill+(r.issued?' ('+r.issued.cat.toLowerCase()+' stock)':''):''))}${kv('Faulty part serial',esc(r.faultySerial||''))}${r.faultyLoc?kv('Faulty spare held at',esc(r.faultyLoc)+' repair task inventory'):''}${kv('SLA, spare at engineer',slaChip(r)+`<br><span class="muted small">Target ${r.priority.toLowerCase()} ${fh(slaInfo(r).tgt)}</span>`)}
       </div><div style="margin-top:14px"><span class="muted small">Issue description</span><p>${esc(r.fault)}</p>${r.remarks?`<span class="muted small">Remarks</span><p>${esc(r.remarks)}</p>`:''}
@@ -1943,7 +1955,7 @@ function reqTableConf(rowsFn,title='Spare requests',extra={}){
       {k:'callId',t:'Call ID',v:r=>r.callId},
       {k:'customer',t:'Customer',v:r=>r.customer,h:r=>`${esc(r.customer)}<br><span class="muted small">${esc(r.branch)}</span>`},
       {k:'branch',t:'Branch',v:r=>r.branch,xv:true},
-      {k:'pn',t:'Spare',v:r=>r.pn,h:r=>`${esc(partName(r.pn))}<br><span class="muted small">${esc(r.pn)} x${r.qty}</span>`},
+      {k:'pn',t:'Spare',v:r=>r.pn+(r.otherSpare?' '+r.otherSpare:''),h:r=>`${esc(partName(r.pn))}${r.otherSpare?`<br><span class="small"><b>${esc(r.otherSpare)}</b></span>`:''}<br><span class="muted small">${esc(r.pn)} x${r.qty}</span>`},
       {k:'qty',t:'Qty',v:r=>r.qty,xv:true},
       {k:'priority',t:'Priority',v:r=>r.priority,h:r=>prio(r.priority)},
       {k:'status',t:'Status',v:r=>r.status,h:r=>pill(r.status)},
@@ -1976,7 +1988,7 @@ function tkTableConf(rowsFn,title='Repair jobs'){
 function reqKanban(rows){
   return `<div class="kanban">${STAGES.map(g=>{ const list=rows.filter(r=>g.s.includes(r.status)); const show=g.k==='done'?list.slice(0,25):list.slice(0,40);
     return `<section class="kcol" style="--kc:${g.c}"><h3>${esc(g.t)}<span>${list.length}</span></h3>${show.map(r=>`<button class="kcard" data-act="open" data-kind="req" data-id="${esc(r.id)}">
-      <div class="t"><span>${esc(r.id)}${r.parent||(r.children||[]).length?' <span class="tag">Split</span>':''}</span>${prio(r.priority)}</div><div class="d">${esc(partName(r.pn))} x${r.qty}</div>
+      <div class="t"><span>${esc(r.id)}${r.parent||(r.children||[]).length?' <span class="tag">Split</span>':''}</span>${prio(r.priority)}</div><div class="d">${esc(r.otherSpare?'Others: '+r.otherSpare:partName(r.pn))} x${r.qty}</div>
       <div class="m"><span>${esc(r.customer)}</span><span>${esc(r.branch.replace(/^[A-Z&]+-/,''))}</span></div>
       ${routeHTML(r,true)}<div class="m"><span>${pill(r.status)}</span>${slaChip(r)}</div></button>`).join('')}
       ${list.length>show.length?`<div class="more">${list.length-show.length} more. Use the list view or filters.</div>`:''}${!list.length?'<div class="more">None</div>':''}</section>`; }).join('')}</div>`;
@@ -2016,7 +2028,8 @@ function newReqFields(){
     {k:'branch',label:'Branch',type:'select',req:true,opts:()=>brOpts,def:()=>fixedBranch?u.loc:(S.ui.nrBranch||''),sec:2},
     {k:'engineer',label:'Engineer',type:'select',req:true,opts:()=>usersBy(R.ENG,S.ui.nrBranch||(fixedBranch?u.loc:'')).map(x=>({v:x.id,t:x.name})),def:()=>u.role===R.ENG?u.id:'',sec:2},
     {k:'fault',label:'Issue description',type:'textarea',req:true,sec:3},
-    {k:'pn',label:'Required spare part',type:'select',req:true,opts:()=>activeParts().map(p=>({v:p.pn,t:`${p.pn}, ${p.desc}`})),sec:3},
+    {k:'pn',label:'Required spare part',type:'select',req:true,opts:()=>[...activeParts().map(p=>({v:p.pn,t:`${p.pn}, ${p.desc}`})),{v:OTHER_PN,t:'Others (spare not in the list)'}],sec:3},
+    {k:'otherSpare',label:'Describe the spare required',type:'textarea',sec:3,hint:'Name, rating, make or part code as marked on the spare. Mandatory when Others is selected.'},
     {k:'qty',label:'Spare quantity',type:'number',req:true,def:'1',sec:3},
     {k:'priority',label:'Priority',type:'radios',req:true,opts:PRIORITIES,def:'Normal',sec:3},
     {k:'returnable',label:'Returnable spare',type:'radios',req:true,opts:['Yes','No'],def:'Yes',sec:3},
@@ -2038,7 +2051,8 @@ function newReqHTML(){
 function nrSide(){
   const f=$('#nrForm'); if(!f) return; const b=f.branch.value, pn=f.pn.value, q=Math.max(1,parseInt(f.qty.value)||1); const p=DB.parts[pn];
   let h='<h3>What happens next</h3>';
-  if(!b||!p){ h+='<p class="muted">Pick the branch and spare to see stock and the likely route.</p>'; }
+  if(pn===OTHER_PN){ h+='<p class="warn-t" style="font-weight:600;margin:8px 0">Spare not in the master list.</p><p class="small">The request goes to the branch team with your description. Before any issue, the branch, hub or central TRCE identifies it against the spare master with <b>Identify spare</b>. If it is a new part, HO Admin first adds it to the spare master.</p>'; }
+  else if(!b||!p){ h+='<p class="muted">Pick the branch and spare to see stock and the likely route.</p>'; }
   else { const h0=hubOf(b), bs=availQ(b,pn), hs=availQ(h0,pn), cs=sum(CENTRALS,c=>availQ(c,pn));
     const route = bs>=q?['ok','Branch can issue the full quantity from its own stock.']:bs>0?['warn',`Branch has ${bs} of ${q}. It issues ${bs}; the balance of ${q-bs} goes to ${h0} as a linked request.`]:hs>0?['warn',`Branch has none. ${h0} holds ${hs}.`]:['bad',`Branch and ${h0} have none. Central TRCE holds ${cs}.`];
     h+=`<p class="${route[0]}-t" style="font-weight:600;margin:8px 0 12px">${esc(route[1])}</p>
@@ -2049,12 +2063,16 @@ function nrSide(){
 function bindNewReq(){
   const f=$('#nrForm'); const F=newReqFields();
   f.addEventListener('change',e=>{ if(e.target.name==='branch'){ S.ui.nrBranch=e.target.value; const sel=f.engineer; sel.innerHTML='<option value="">Select</option>'+usersBy(R.ENG,e.target.value).map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join(''); }
-    if(e.target.name==='pn'){ const p=DB.parts[e.target.value]; if(p){ const r=f.querySelector(`input[name=returnable][value=${p.ret?'Yes':'No'}]`); if(r) r.checked=true; } }
+    if(e.target.name==='pn'){ const p=DB.parts[e.target.value]; if(p){ const r=f.querySelector(`input[name=returnable][value=${p.ret?'Yes':'No'}]`); if(r) r.checked=true; } otherToggle(f); }
     nrSide(); });
   f.addEventListener('input',e=>{ if(e.target.name==='qty') nrSide(); });
   f.addEventListener('reset',()=>setTimeout(nrSide,0));
+  f.addEventListener('reset',()=>setTimeout(()=>otherToggle(f),0)); otherToggle(f);
+  f.addEventListener('input',e=>{ if(e.target.name==='otherSpare'&&e.target.value.trim()){ const box=e.target.closest('.field'); box.classList.remove('err'); const em=box.querySelector('.em'); if(em) em.remove(); } });
   f.onsubmit=async e=>{ e.preventDefault(); const d=await readForm(f,F); if(!d) return toast('Fill the highlighted fields.',true);
     if(num(d.qty)<1) return toast('Quantity must be at least 1.',true);
+    if(d.pn===OTHER_PN && !String(d.otherSpare||'').trim()){ const box=f.querySelector('[data-f="otherSpare"]'); box.classList.add('err'); if(!box.querySelector('.em')) box.insertAdjacentHTML('beforeend','<span class="em">Describe the spare you need.</span>'); box.querySelector('textarea').focus(); return toast('Describe the spare you need.',true); }
+    if(d.pn!==OTHER_PN) d.otherSpare='';
     const r=createRequest(d); toast('Spare request '+r.id+' raised and sent to '+r.branch+' store.'); S.ui.nrBranch=''; go('requests'); openReq(r.id); };
   nrSide();
 }
@@ -2191,10 +2209,11 @@ async function pushOutbox(){
     /* 2. records, in batches */
     const recs=out.filter(o=>o.op!=='file').slice(0,CFG.BATCH_SIZE);
     if(recs.length){ const res=await api('upsert',{items:recs.map(o=>({op:o.op,entity:o.e,recordId:o.id,baseVersion:o.base,payload:o.p,location:o.loc,status:o.status,secret:o.secret,updatedBy:S.user?S.user.id:''}))});
-      const vers=META.versions||{}; (res.saved||[]).forEach(s=>{ vers[s.entity+'|'+s.recordId]=s.version; });
-      (res.conflicts||[]).forEach(c=>{ applyRemote(c); toast(`${c.recordId} was changed by another user at the same time. The latest version is loaded; please check it and repeat your step if still needed.`,true); }); if((res.conflicts||[]).length){ rebuildStock(); refreshAll(); }
+      const vers=META.versions||{}; const sentSet=new Set(recs); const cur=META.outbox||[];
+      (res.saved||[]).forEach(s=>{ const k=s.entity+'|'+s.recordId; vers[k]=s.version; cur.forEach(o=>{ if(o.k===k&&!sentSet.has(o)) o.base=s.version; }); });
+      (res.conflicts||[]).forEach(c=>{ const k=c.entity+'|'+c.recordId; for(let i=cur.length-1;i>=0;i--) if(cur[i].k===k&&!sentSet.has(cur[i])) cur.splice(i,1); applyRemote(c); toast(`${c.recordId} was changed by another user at the same time. The latest version is loaded; please check it and repeat your step if still needed.`,true); }); if((res.conflicts||[]).length){ rebuildStock(); refreshAll(); }
       const done=new Set([...(res.saved||[]),...(res.conflicts||[])].map(s=>s.entity+'|'+s.recordId));
-      META.outbox=out.filter(o=>!done.has(o.k)); META.versions=vers; await IDB.put('meta','versions',vers); }
+      META.outbox=cur.filter(o=>!(sentSet.has(o)&&done.has(o.k))); META.versions=vers; await IDB.put('meta','versions',vers); }
     else META.outbox=out;
     await IDB.put('meta','outbox',META.outbox); await IDB.put('state','db',DB);
     SYNC.last=nowISO(); setSync(META.outbox.length?'busy':'idle');
@@ -2228,7 +2247,7 @@ function applyRemote(it){
 }
 async function pullChanges(full){
   if(!ONLINE||!META.token||!navigator.onLine) return;
-  try{ setSync('busy'); const since=full?'':(META.lastPull||'');
+  try{ setSync('busy'); queueChanges(); const since=full?'':(META.lastPull||'');
     const res=await api('load',{since}); const pend=new Set((META.outbox||[]).map(o=>o.k));
     (res.items||[]).forEach(it=>{ if(!pend.has(it.entity+'|'+it.recordId)) applyRemote(it); });
     ['txns','audit','notifs'].forEach(a=>DB[a].sort((x,y)=>String(x.ts).localeCompare(String(y.ts)))); rebuildStock();
@@ -3391,6 +3410,17 @@ go-live:
 /* ---------------- boot ---------------- */
 function onlineDefaults(){ const d=emptyDB(); d.rolePerms=JSON.parse(JSON.stringify(DEFAULT_ROLE_PERMS)); d.sla=JSON.parse(JSON.stringify(REF.lists.sla));
   d.couriers=REF.lists.couriers.slice(); d.models=SEED_MODELS.slice(); d.meta={online:true}; return d; }
+/* ---------- Others: spares and components not in the master lists ---------- */
+function otherToggle(f){ const box=f&&f.querySelector('[data-f="otherSpare"]'); if(!box) return; const on=f.pn&&f.pn.value===OTHER_PN; box.hidden=!on; const ta=box.querySelector('textarea'); if(ta){ ta.required=on; if(!on){ ta.value=''; box.classList.remove('err'); const em=box.querySelector('.em'); if(em) em.remove(); } } }
+document.addEventListener('change',e=>{ const sel=e.target; if(!sel.matches||!sel.matches('.lw tbody select')) return; const inp=sel.closest('tr').querySelector('input[type=text]'); if(!inp) return; const oth=sel.value===OTHER_CODE; inp.placeholder=oth?'Describe the component (required)':'Optional'; inp.classList.toggle('oth-req',oth); if(oth) inp.focus(); });
+ACTIONS.identify={ label:'Identify spare', pri:true, from:[ST.REQ,ST.FH,ST.FC], perm:'req.view', cond:r=>r.pn===OTHER_PN,
+  scope:(r,u)=>u.role===R.ADMIN||(r.status===ST.REQ&&u.role===R.BS&&u.loc===r.branch)||(r.status===ST.FH&&u.role===R.HT&&u.loc===r.hub)||(r.status===ST.FC&&u.role===R.CT&&u.loc===r.central),
+  fields:[{k:'pn',label:'Matching part from the spare master',type:'select',req:true,opts:()=>activeParts().map(p=>({v:p.pn,t:`${p.pn}, ${p.desc}`})),hint:'Requested as Others. If the part is not in the list, ask HO Admin to add it to the spare master first.'},{k:'note',label:'Remarks',type:'textarea'}],
+  info:r=>'Requested as Others: '+r.otherSpare,
+  run(r,d,u){ const p=DB.parts[d.pn]; if(!p||p.active===false) throw new Error('Pick an active part from the spare master.'); r.otherFrom=r.otherSpare; r.pn=d.pn; delete r.otherSpare;
+    r.history.push({ts:nowISO(),status:r.status,by:u.id,role:u.role,note:`Spare identified: Others "${r.otherFrom}" is ${p.pn}, ${p.desc}${d.note?'. '+d.note:''}`,comment:true}); r.updated=nowISO();
+    audit('Spare identified from Others','Spare request',r.id,`${r.otherFrom} mapped to ${p.pn}`,u); } };
+['issueBranch','issueHub','issueCentral'].forEach(k=>{ const a=ACTIONS[k]; if(!a) return; const c=a.cond; a.cond=r=>r.pn!==OTHER_PN&&(!c||c(r)); });
 (async function boot(){
   try{ await storageInit(); }catch(e){ document.getElementById('root').innerHTML='<p style="padding:30px">This browser blocks IndexedDB (private window?). Open the portal in a normal window.</p>'; return; }
   if(META.theme) document.documentElement.dataset.theme=META.theme;
