@@ -384,6 +384,8 @@ tbody tr:hover td.act{background:var(--soft)}
 .doc{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--panel);cursor:pointer;text-align:left;color:var(--ink)}
 .doc:hover{border-color:var(--brand)} .doc img{width:64px;height:64px;object-fit:cover;border-radius:6px;background:var(--soft)}
 .oth-req{border-color:var(--warn)!important;background:var(--warnbg)!important}
+.sel-search{margin-bottom:6px;font-size:13px;padding:6px 9px}
+.lw-search{width:100%}
 .rolechip.sync-error{background:var(--badbg);color:var(--bad);cursor:pointer} .rolechip.busy{background:var(--warnbg);color:var(--warn);cursor:pointer} #syncChip{cursor:pointer}
 
 </style>
@@ -1338,6 +1340,17 @@ const slaChip = r => { const s=slaInfo(r); return s.state==='na'?'<span class="m
 const tpill = s => pill(s, TK_COLOR[s]);
 const shPill = s => pill(s, s==='Delivered'?'var(--c-done)':s==='Delayed'?'var(--c-stop)':'var(--c-transit)');
 const OTHER_PN='OTHERS', OTHER_CODE='OTHERS';
+/* spare and component dropdowns: grouped by master category, searchable, filterable by category */
+const partOpts = () => activeParts().slice().sort((a,b)=>String(a.cat||'').localeCompare(String(b.cat||''))||String(a.desc).localeCompare(String(b.desc))).map(p=>({v:p.pn,t:`${p.pn}, ${p.desc}`,g:p.cat||'Other',c:(p.cat||'')+'|'+(p.model||'')}));
+const partCats = () => uniq(activeParts().map(p=>p.cat||'Other')).sort();
+const compOpts = () => activeComps().slice().sort((a,b)=>String(a.ccat||'').localeCompare(String(b.ccat||''))||String(a.name).localeCompare(String(b.name))).map(c=>({v:c.code,t:c.code+', '+c.name,g:c.ccat||'Other'}));
+function selFilter(sel){ if(!sel) return; const box=sel.parentElement; const q=(box.querySelector('.sel-search[data-for="'+sel.id+'"]')||sel.parentElement.querySelector('.sel-search')||{}).value||''; const toks=q.toLowerCase().split(/\s+/).filter(Boolean);
+  const cf=sel.dataset.catfilter?document.getElementById(sel.dataset.catfilter):null; const cat=cf?cf.value:''; let shown=0;
+  sel.querySelectorAll('option').forEach(o=>{ if(!o.value||o.value===OTHER_PN){ o.hidden=false; return; } const t=o.textContent.toLowerCase(); const ok=toks.every(k=>t.includes(k))&&(!cat||('|'+(o.dataset.c||'')+',').toLowerCase().includes(cat.toLowerCase())); o.hidden=!ok&&!o.selected; if(ok) shown++; });
+  sel.querySelectorAll('optgroup').forEach(g=>{ g.hidden=![...g.children].some(o=>!o.hidden); });
+  const s=box.querySelector('.sel-search'); if(s) s.title=shown+' matching'; }
+document.addEventListener('input',e=>{ if(e.target.matches&&e.target.matches('.sel-search')){ const sel=e.target.dataset.for?document.getElementById(e.target.dataset.for):e.target.parentElement.querySelector('select'); selFilter(sel); } });
+document.addEventListener('change',e=>{ const t=e.target; if(t.matches&&t.matches('select')&&t.id){ document.querySelectorAll(`select[data-catfilter="${t.id}"]`).forEach(selFilter); } });
 const isOtherComp = code => /^OTH-/.test(code||'');
 function otherCompName(code){ if(!isOtherComp(code)) return ''; for(const c of Object.values(DB.creqs||{})) for(const l of c.lines||[]) if(l.code===code) return l.name; return 'Others component'; }
 const otherStock = loc => Object.values(DB.cstock||{}).filter(c=>c.loc===loc&&isOtherComp(c.code)&&c.qty>0);
@@ -1511,7 +1524,10 @@ function fieldHTML(f,ctx){
       <p class="hs-none small muted" ${pend>0?'hidden':''}>The full quantity is issued from branch stock. Nothing to forward.</p></div></div>`; }
   if(f.type==='textarea') inp=`<textarea id="${id}" name="${f.k}" ${req}>${esc(v)}</textarea>`;
   else if(f.type==='select'){ const o=(typeof f.opts==='function'?f.opts(ctx):f.opts)||[];
-    inp=`<select id="${id}" name="${f.k}" ${req}><option value="">Select</option>${o.map(x=>{ const ov=typeof x==='object'?x.v:x, ot=typeof x==='object'?x.t:x; return `<option value="${esc(ov)}" ${String(ov)===String(v)?'selected':''} ${x.dis?'disabled':''}>${esc(ot)}</option>`; }).join('')}</select>`; }
+    const one=x=>{ const ov=typeof x==='object'?x.v:x, ot=typeof x==='object'?x.t:x; return `<option value="${esc(ov)}" ${String(ov)===String(v)?'selected':''} ${x.dis?'disabled':''} ${x.c?`data-c="${esc(x.c)}"`:''}>${esc(ot)}</option>`; };
+    const grouped=o.some(x=>x&&x.g); let body='';
+    if(grouped){ let g=null; o.forEach(x=>{ if(x.g!==g){ if(g!==null) body+='</optgroup>'; g=x.g; body+=`<optgroup label="${esc(g||'Other')}">`; } body+=one(x); }); if(g!==null) body+='</optgroup>'; } else body=o.map(one).join('');
+    inp=`${o.length>25?`<input type="search" class="sel-search" data-for="${id}" placeholder="Type to search ${o.length} items" aria-label="Search ${esc(f.label)}">`:''}<select id="${id}" name="${f.k}" ${req} ${f.catFor?`data-catfilter="f_${f.catFor}"`:''}><option value="">Select</option>${body}</select>`; }
   else if(f.type==='radios'){ const o=typeof f.opts==='function'?f.opts(ctx):f.opts; inp=`<div class="radios" role="radiogroup">${o.map(x=>`<label><input type="radio" name="${f.k}" value="${esc(x)}" ${x===v?'checked':''} ${req}><span>${esc(x)}</span></label>`).join('')}</div>`; }
   else if(f.type==='file') inp=`<input id="${id}" name="${f.k}" type="file" ${f.multi!==false?'multiple':''} accept="${f.accept||'image/*,.pdf,.doc,.docx,.xls,.xlsx'}" ${req}>`;
   else inp=`<input id="${id}" name="${f.k}" type="${f.type||'text'}" value="${esc(v)}" ${f.type==='number'?'min="0" step="any"':''} ${f.list?`list="dl_${f.k}"`:''} ${req}>${f.list?`<datalist id="dl_${f.k}">${f.list(ctx).map(x=>`<option value="${esc(x)}">`).join('')}</datalist>`:''}`;
@@ -1562,7 +1578,8 @@ const fileList = (arr,kind='Request',id='') => arr&&arr.length ? `<div class="fi
   return `<button type="button" class="doc" data-act="docView" data-doc="${key}" title="${esc(f.kind||'')}">${img?`<img data-doc="${key}" alt="${esc(f.name)}" ${f.url?`src="${f.url}" data-done="1"`:''}>`:svg('file')}<span class="small">${esc(f.name)}<br><span class="muted">${esc(f.kind||'')}</span> ${tag}</span></button>`; }).join('')}</div>` : '<p class="muted">No files.</p>';
 
 /* ---------- line-item widget: components used / requested, with Excel or CSV bulk upload ---------- */
-function lwRow(loc,code,qty,rem){ const oth=code===OTHER_CODE; return `<tr><td><select aria-label="Component"><option value="">Select component</option>${activeComps().map(c=>`<option value="${c.code}" ${c.code===code?'selected':''}>${esc(c.code)}, ${esc(c.name)} (stock ${cstk(loc,c.code)})</option>`).join('')}${otherStock(loc).map(c=>`<option value="${c.code}" ${c.code===code?'selected':''}>${esc(c.code)}, ${esc(otherCompName(c.code))} (stock ${c.qty}, not in master)</option>`).join('')}<option value="${OTHER_CODE}" ${oth?'selected':''}>Others (component not in the list)</option></select></td>
+function lwRow(loc,code,qty,rem){ const oth=code===OTHER_CODE; let g=null; const grp=activeComps().slice().sort((a,b)=>String(a.ccat||'').localeCompare(String(b.ccat||''))||String(a.name).localeCompare(String(b.name))).map(c=>{ const h=(c.ccat||'Other')!==g?`${g!==null?'</optgroup>':''}<optgroup label="${esc(g=(c.ccat||'Other'))}">`:''; return h+`<option value="${c.code}" ${c.code===code?'selected':''}>${esc(c.code)}, ${esc(c.name)} (stock ${cstk(loc,c.code)})</option>`; }).join('')+(g!==null?'</optgroup>':'');
+  return `<tr><td>${activeComps().length>25?'<input type="search" class="sel-search lw-search" placeholder="Type to search components" aria-label="Search components">':''}<select aria-label="Component"><option value="">Select component</option>${grp}${otherStock(loc).map(c=>`<option value="${c.code}" ${c.code===code?'selected':''}>${esc(c.code)}, ${esc(otherCompName(c.code))} (stock ${c.qty}, not in master)</option>`).join('')}<option value="${OTHER_CODE}" ${oth?'selected':''}>Others (component not in the list)</option></select></td>
   <td class="r"><input type="number" min="0" step="1" value="${qty||''}" aria-label="Quantity" style="text-align:right"></td><td><input type="text" value="${esc(rem||'')}" placeholder="${oth?'Describe the component (required)':'Optional'}" aria-label="Remarks" ${oth?'class="oth-req"':''}></td>
   <td><button type="button" class="btn sm ghost" data-act="lwDel" aria-label="Remove line">${svg('x')}</button></td></tr>`; }
 function lwSync(lw){ const rows=$$('tbody tr',lw).map(tr=>({code:$('select',tr).value,qty:num($('input[type=number]',tr).value)})).filter(x=>x.code);
@@ -2028,7 +2045,8 @@ function newReqFields(){
     {k:'branch',label:'Branch',type:'select',req:true,opts:()=>brOpts,def:()=>fixedBranch?u.loc:(S.ui.nrBranch||''),sec:2},
     {k:'engineer',label:'Engineer',type:'select',req:true,opts:()=>usersBy(R.ENG,S.ui.nrBranch||(fixedBranch?u.loc:'')).map(x=>({v:x.id,t:x.name})),def:()=>u.role===R.ENG?u.id:'',sec:2},
     {k:'fault',label:'Issue description',type:'textarea',req:true,sec:3},
-    {k:'pn',label:'Required spare part',type:'select',req:true,opts:()=>[...activeParts().map(p=>({v:p.pn,t:`${p.pn}, ${p.desc}`})),{v:OTHER_PN,t:'Others (spare not in the list)'}],sec:3},
+    {k:'pcat',label:'Spare category',type:'select',opts:()=>partCats(),sec:3,hint:'Optional: narrows the spare list. Spares used in several series appear under each of them.'},
+    {k:'pn',label:'Required spare part',type:'select',req:true,catFor:'pcat',opts:()=>[...partOpts(),{v:OTHER_PN,t:'Others (spare not in the list)',g:'Others'}],sec:3},
     {k:'otherSpare',label:'Describe the spare required',type:'textarea',sec:3,hint:'Name, rating, make or part code as marked on the spare. Mandatory when Others is selected.'},
     {k:'qty',label:'Spare quantity',type:'number',req:true,def:'1',sec:3},
     {k:'priority',label:'Priority',type:'radios',req:true,opts:PRIORITIES,def:'Normal',sec:3},
@@ -2530,7 +2548,7 @@ VACT.newCR = () => { const u=S.user; if(!can('comp.request')) return toast('Your
     {k:'just',label:'Overall justification',type:'textarea',req:true}], d=>{ const c=raiseCompReq(d); return `${c.id}: ${c.lines.length} line(s) sent to Central TRCE Head for approval`; }, true); };
 VACT.newXF = () => { const u=S.user; const locs=u.role===R.ADMIN?LOCS:[u.loc];
   formModal('Inter-location stock transfer',[{k:'from',label:'From',type:'select',req:true,opts:locs,def:locs[0]},{k:'to',label:'To',type:'select',req:true,opts:LOCS},
-    {k:'pn',label:'Spare part',type:'select',req:true,opts:()=>activeParts().map(p=>({v:p.pn,t:`${p.pn}, ${p.desc}`}))},{k:'cat',label:'Stock category',type:'select',req:true,opts:['New','Repaired','Scrap'].map(c=>({v:c,t:CAT_LABEL[c]})),def:'New'},
+    {k:'pn',label:'Spare part',type:'select',req:true,opts:()=>partOpts()},{k:'cat',label:'Stock category',type:'select',req:true,opts:['New','Repaired','Scrap'].map(c=>({v:c,t:CAT_LABEL[c]})),def:'New'},
     {k:'qty',label:'Quantity',type:'number',req:true,def:'1'},{k:'reason',label:'Reason',type:'text',req:true,def:'Replenishment'},...COURIER_FIELDS],
     d=>{ if(d.from===d.to) throw new Error('Pick a different destination.'); const x=createTransfer(d); return x.id+' dispatched to '+d.to; }); };
 
@@ -2707,11 +2725,11 @@ VACT.lots = el => { const s=DB.stock[el.dataset.k]; if(!s) return; const lots=(s
    <div class="modal-b"><div class="tw"><table><thead><tr><th>#</th><th>Batch</th><th>Received</th><th class="r">Age (days)</th><th class="r">Remaining</th></tr></thead><tbody>${lots.map((l,i)=>`<tr><td>${i+1}</td><td class="mono">${esc(l.b)}</td><td>${fdt(l.d)}</td><td class="r">${Math.floor(hrs(l.d)/24)}</td><td class="r"><b>${l.q}</b></td></tr>`).join('')}</tbody></table></div>
    <h3 style="margin:16px 0 8px">Recent transactions</h3>${txnList(DB.txns.filter(x=>x.loc===s.loc&&x.pn===s.pn&&x.cat===s.cat).slice(-12).reverse())}</div>`); };
 VACT.grn = () => { const locs=S.user.role===R.ADMIN?LOCS:[S.user.loc];
-  formModal('Goods receipt',[{k:'loc',label:'Location',type:'select',req:true,opts:locs,def:locs[0]},{k:'pn',label:'Spare part',type:'select',req:true,opts:()=>activeParts().map(p=>({v:p.pn,t:p.pn+', '+p.desc}))},
+  formModal('Goods receipt',[{k:'loc',label:'Location',type:'select',req:true,opts:locs,def:locs[0]},{k:'pn',label:'Spare part',type:'select',req:true,opts:()=>partOpts()},
     {k:'cat',label:'Category',type:'select',req:true,opts:[{v:'New',t:'New'},{v:'Repaired',t:'Serviceable (repaired)'}],def:'New'},{k:'qty',label:'Quantity',type:'number',req:true,def:'1'},{k:'ref',label:'PO / invoice reference',type:'text',req:true},{k:'batch',label:'Batch number',type:'text',hint:'Leave blank to use the transaction number'},{k:'bin',label:'Bin location',type:'text'}],
     d=>{ stockMove(d.loc,d.pn,d.cat,Math.max(1,num(d.qty)),'Goods receipt',d.ref,S.user,{batch:d.batch||undefined}); if(d.bin) DB.stock[skey(d.loc,d.pn,d.cat)].bin=d.bin; return `${d.qty} x ${d.pn} received at ${d.loc}`; }); };
 VACT.cgrn = () => { const locs=S.user.role===R.ADMIN?LOCS:[S.user.loc];
-  formModal('Receive components',[{k:'loc',label:'Location',type:'select',req:true,opts:locs,def:locs[0]},{k:'code',label:'Component',type:'select',req:true,opts:()=>activeComps().map(c=>({v:c.code,t:c.code+', '+c.name}))},{k:'qty',label:'Quantity',type:'number',req:true,def:'10'},{k:'ref',label:'Reference',type:'text',req:true}],
+  formModal('Receive components',[{k:'loc',label:'Location',type:'select',req:true,opts:locs,def:locs[0]},{k:'code',label:'Component',type:'select',req:true,opts:()=>compOpts()},{k:'qty',label:'Quantity',type:'number',req:true,def:'10'},{k:'ref',label:'Reference',type:'text',req:true}],
     d=>{ compMove(d.loc,d.code,Math.max(1,num(d.qty)),'Goods receipt',d.ref,S.user); return `${d.qty} x ${d.code} received`; }); };
 VACT.invAdj = el => { const s=DB.stock[el.dataset.k]; if(!s) return;
   formModal(`Adjust ${s.pn}, ${CAT_LABEL[s.cat]} at ${s.loc}`,[{k:'qty',label:'Change in quantity (use minus to reduce)',type:'number',req:true,def:'0'},{k:'bin',label:'Bin location',type:'text',def:s.bin},{k:'reason',label:'Reason',type:'select',req:true,opts:['Physical count difference','Damaged in store','Bin correction only','Found in store']}],
@@ -2721,7 +2739,8 @@ function invAfter(){}
 /* ---------- faulty spare for repair (no new spare issued) ---------- */
 function newRepairFields(){ const u=S.user; const isEng=u.role===R.ENG; const b=S.ui.nrrBranch||(u.role===R.ADMIN?'':u.loc);
   const F=[{k:'branch',label:'Branch',type:'select',req:true,opts:()=>u.role===R.ADMIN?BR_LIST:[u.loc],def:()=>b},
-    {k:'pn',label:'Faulty spare part',type:'select',req:true,opts:()=>activeParts().map(p=>({v:p.pn,t:`${p.pn}, ${p.desc}`}))},
+    {k:'pcat',label:'Spare category',type:'select',opts:()=>partCats(),hint:'Optional: narrows the spare list.'},
+    {k:'pn',label:'Faulty spare part',type:'select',req:true,catFor:'pcat',opts:()=>partOpts()},
     {k:'serials',label:'Faulty serial numbers (one per line)',type:'textarea',req:true,hint:'Each serial becomes its own repair task.'},
     {k:'fault',label:'Fault description',type:'textarea',req:true},
     {k:'callId',label:'Call ID (if any)',type:'text'},{k:'customer',label:'Customer (if any)',type:'text'}];
@@ -3415,7 +3434,7 @@ function otherToggle(f){ const box=f&&f.querySelector('[data-f="otherSpare"]'); 
 document.addEventListener('change',e=>{ const sel=e.target; if(!sel.matches||!sel.matches('.lw tbody select')) return; const inp=sel.closest('tr').querySelector('input[type=text]'); if(!inp) return; const oth=sel.value===OTHER_CODE; inp.placeholder=oth?'Describe the component (required)':'Optional'; inp.classList.toggle('oth-req',oth); if(oth) inp.focus(); });
 ACTIONS.identify={ label:'Identify spare', pri:true, from:[ST.REQ,ST.FH,ST.FC], perm:'req.view', cond:r=>r.pn===OTHER_PN,
   scope:(r,u)=>u.role===R.ADMIN||(r.status===ST.REQ&&u.role===R.BS&&u.loc===r.branch)||(r.status===ST.FH&&u.role===R.HT&&u.loc===r.hub)||(r.status===ST.FC&&u.role===R.CT&&u.loc===r.central),
-  fields:[{k:'pn',label:'Matching part from the spare master',type:'select',req:true,opts:()=>activeParts().map(p=>({v:p.pn,t:`${p.pn}, ${p.desc}`})),hint:'Requested as Others. If the part is not in the list, ask HO Admin to add it to the spare master first.'},{k:'note',label:'Remarks',type:'textarea'}],
+  fields:[{k:'pn',label:'Matching part from the spare master',type:'select',req:true,opts:()=>partOpts(),hint:'Requested as Others. If the part is not in the list, ask HO Admin to add it to the spare master first.'},{k:'note',label:'Remarks',type:'textarea'}],
   info:r=>'Requested as Others: '+r.otherSpare,
   run(r,d,u){ const p=DB.parts[d.pn]; if(!p||p.active===false) throw new Error('Pick an active part from the spare master.'); r.otherFrom=r.otherSpare; r.pn=d.pn; delete r.otherSpare;
     r.history.push({ts:nowISO(),status:r.status,by:u.id,role:u.role,note:`Spare identified: Others "${r.otherFrom}" is ${p.pn}, ${p.desc}${d.note?'. '+d.note:''}`,comment:true}); r.updated=nowISO();
